@@ -5,6 +5,7 @@ Desafio da DIO para construir um board de tarefas usando persistência no banco 
 Diagrama UML simplificado das entidades utilizadas
 ```mermaid
 classDiagram
+direction LR
     class Board {
 	    -Long id
 	    -String name
