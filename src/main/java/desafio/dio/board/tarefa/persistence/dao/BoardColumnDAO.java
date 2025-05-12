@@ -35,7 +35,6 @@ public class BoardColumnDAO {
       if (resultSet.next()) {
         entity.setId(resultSet.getLong(1));
       }
-
       return entity;
     }
   }
@@ -64,7 +63,7 @@ public class BoardColumnDAO {
         SELECT bc.id,
                bc.name,
                bc.kind,
-               COUNT(SELECT c.id
+               (SELECT COUNT(c.id)
                      FROM cards c
                      WHERE c.boards_column_id = bc.id) cards_amount
         FROM boards_columns bc
@@ -96,7 +95,7 @@ public class BoardColumnDAO {
                c.title,
                c.description
           FROM boards_columns bc
-         INNER JOIN cards c
+          LEFT JOIN cards c
             ON c.board_column_id = bc.id
          WHERE bc.id = ?;
         """;
@@ -109,10 +108,10 @@ public class BoardColumnDAO {
         entity.setName(resultSet.getString("bc.name"));
         entity.setKind(BoardColumnKindEnum.findByName(resultSet.getString("bc.kind")));
         do {
-          CardEntity card = new CardEntity();
           if (isNull(resultSet.getString("c.title"))) {
             break;
           }
+          CardEntity card = new CardEntity();
           card.setId(resultSet.getLong("c.id"));
           card.setTitle(resultSet.getString("c.title"));
           card.setDescription(resultSet.getString("c.description"));

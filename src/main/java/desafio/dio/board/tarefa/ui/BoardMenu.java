@@ -7,10 +7,15 @@ import java.util.Optional;
 import java.util.Scanner;
 
 import desafio.dio.board.tarefa.persistence.config.ConnectionConfig;
+import desafio.dio.board.tarefa.persistence.dto.BoardColumnInfoDTO;
 import desafio.dio.board.tarefa.persistence.dto.BoardDetailsDTO;
+import desafio.dio.board.tarefa.persistence.dto.CardDetailsDTO;
 import desafio.dio.board.tarefa.persistence.entity.BoardColumnEntity;
 import desafio.dio.board.tarefa.persistence.entity.BoardEntity;
+import desafio.dio.board.tarefa.persistence.entity.CardEntity;
 import desafio.dio.board.tarefa.service.BoardQueryService;
+import desafio.dio.board.tarefa.service.CardQuerryService;
+import desafio.dio.board.tarefa.service.CardService;
 import desafio.dio.board.tarefa.service.BoardColumnQuerryService;
 import lombok.AllArgsConstructor;
 
@@ -60,19 +65,70 @@ public class BoardMenu {
     }
   }
 
-  private void createCard() {
+  private void createCard() throws SQLException {
+    CardEntity card = new CardEntity();
+    System.out.println("Informe o título do card");
+    card.setTitle(scanner.next());
+    System.out.println("Informe a descrição do card");
+    card.setTitle(scanner.next());
+    card.setBoardColumn(boardEntity.getInitialColumn());
+    try (Connection connection = ConnectionConfig.getConnection()) {
+      new CardService(connection).create(card);
+    }
   }
 
-  private void moveCard() {
+  private void moveCard() throws SQLException {
+    System.out.println("Informe o id do card que deseja mover para a próxima coluna");
+    Long cardId = scanner.nextLong();
+    List<BoardColumnInfoDTO> boardColumnsInfo = boardEntity.getBoardColumns().stream()
+        .map(bc -> new BoardColumnInfoDTO(bc.getId(), bc.getOrder(), bc.getKind()))
+        .toList();
+    try (Connection connection = ConnectionConfig.getConnection()) {
+      new CardService(connection).moveToNextColumn(cardId, boardColumnsInfo);
+    } catch (RuntimeException e) {
+      System.out.println(e.getMessage());
+    }
   }
 
-  private void blockCard() {
+  private void blockCard() throws SQLException {
+    System.out.println("Informe o id do card que deseja bloquear");
+    Long cardId = scanner.nextLong();
+    System.out.println("Informe o motivo do bloqueio do card");
+    String blockCause = scanner.next();
+    List<BoardColumnInfoDTO> boardColumnsInfo = boardEntity.getBoardColumns().stream()
+        .map(bc -> new BoardColumnInfoDTO(bc.getId(), bc.getOrder(), bc.getKind()))
+        .toList();
+    try (Connection connection = ConnectionConfig.getConnection()) {
+      new CardService(connection).block(cardId, blockCause, boardColumnsInfo);
+    } catch (RuntimeException e) {
+      System.out.println(e.getMessage());
+    }
   }
 
-  private void unblockCard() {
+  private void unblockCard() throws SQLException {
+    System.out.println("Informe o id do card que deseja desbloquear");
+    Long cardId = scanner.nextLong();
+    System.out.println("Informe o motivo do desbloqueio do card");
+    String unblockCause = scanner.next();
+    try (Connection connection = ConnectionConfig.getConnection()) {
+      new CardService(connection).unblock(cardId, unblockCause);
+    } catch (RuntimeException e) {
+      System.out.println(e.getMessage());
+    }
   }
 
-  private void cancelCard() {
+  private void cancelCard() throws SQLException {
+    System.out.println("Informe o id do card que deseja cancelar");
+    Long cardId = scanner.nextLong();
+    List<BoardColumnInfoDTO> boardColumnsInfo = boardEntity.getBoardColumns().stream()
+        .map(bc -> new BoardColumnInfoDTO(bc.getId(), bc.getOrder(), bc.getKind()))
+        .toList();
+    BoardColumnEntity cancelColumn = boardEntity.getCancelColumn();
+    try (Connection connection = ConnectionConfig.getConnection()) {
+      new CardService(connection).cancel(cardId, cancelColumn.getId(), boardColumnsInfo);
+    } catch (RuntimeException e) {
+      System.out.println(e.getMessage());
+    }
   }
 
   private void showBoard() throws SQLException {
@@ -109,6 +165,20 @@ public class BoardMenu {
 
   }
 
-  private void showCard() {
+  private void showCard() throws SQLException {
+    System.out.println("Informe o id co card que deseja Visualizar");
+    Long selectedCardId = scanner.nextLong();
+    try (Connection connection = ConnectionConfig.getConnection()) {
+      Optional<CardDetailsDTO> card = new CardQuerryService(connection).findById(selectedCardId);
+      card.ifPresentOrElse(c -> {
+        System.out.println("Card %s - %s".formatted(c.id(), c.title()));
+        System.out.println("nDescrição %s".formatted(c.description()));
+        System.out.println(c.blocked() ? "O card está bolqueado com o motivo: %s".formatted(c.blockCause())
+            : "O card não está bloqueado");
+        System.out.println("O card já foi bloqueado %s vezes".formatted(c.blockAmount()));
+        System.out.println("Está atualmente na coluna %s - %s".formatted(c.columnId(), c.columnName()));
+      },
+          () -> System.out.println("Não existe um card com o id %s selecionado".formatted(selectedCardId)));
+    }
   }
 }
